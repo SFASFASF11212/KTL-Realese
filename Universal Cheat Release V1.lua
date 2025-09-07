@@ -1,136 +1,215 @@
-local _Gx = loadstring(game:HttpGet("\x68\x74\x74\x70\x73\x3a\x2f\x2f\x72\x61\x77\x2e\x67\x69\x74\x68\x75\x62\x75\x73\x65\x72\x63\x6f\x6e\x74\x65\x6e\x74\x2e\x63\x6f\x6d\x2f\x74\x62\x61\x6f\x31\x34\x33\x2f\x4c\x69\x62\x72\x61\x72\x79\x2d\x75\x69\x2f\x72\x65\x66\x73\x2f\x68\x65\x61\x64\x73\x2f\x6d\x61\x69\x6e\x2f\x52\x65\x64\x7a\x68\x75\x62\x75\x69"))()
-local _W = _Gx:MakeWindow({Title = "\75\84\76\32\72\117\98\32\58\32\85\110\105\118\101\114\115\97\108", SubTitle = "\66\121\32\85\122\105\44\32\76\101\103\101\110\100\44\32\65\110\100\32\84\114\51\120", SaveFolder = "\75\84\76\32\72\117\98\32\124\32\85\110\105\118\101\114\115\97\108\46\108\117\97"})
-_W:AddMinimizeButton({Button = {Image = "rbxassetid://112061134720873", BackgroundTransparency = 0}, Corner = {CornerRadius = UDim.new(35, 1)}})
+-- Load UI library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/Library-ui/refs/heads/main/Redzhubui"))()
 
-local S = game:GetService
-local P, R, U, ST, M, T = S("Players"), S("RunService"), S("UserInputService"), S("Stats"), S("MarketplaceService"), S("TeleportService")
-local L, C, Sx = P.LocalPlayer, workspace.CurrentCamera, tick()
-local ws, jp, fv = 16, 50, C.FieldOfView
-local ij, nc, ab, tb = false, false, false, false
+-- Create window
+local Window = lib:MakeWindow({
+    Title = "KTL Hub : Universal",
+    SubTitle = "By Uzi, Legend, And Tr3x",
+    SaveFolder = "KTL Hub | Universal.lua"
+})
 
-local function _T(t)
-    for _, f in ipairs({"AddParagraph", "AddLabel", "AddText"}) do
-        if typeof(t[f]) == "function" then
-            return function(a, b)
-                return f == "AddParagraph" and t:AddParagraph({Title = a, Content = b}) or t[f](t, a .. "\n" .. b)
+Window:AddMinimizeButton({
+    Button = { Image = "rbxassetid://112061134720873", BackgroundTransparency = 0 },
+    Corner = { CornerRadius = UDim.new(35, 1) },
+})
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local MarketplaceService = game:GetService("MarketplaceService")
+local TeleportService = game:GetService("TeleportService")
+local LocalPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local scriptStart = tick()
+
+-- Vars
+local speedValue, jumpValue, fovValue = 16, 50, camera.FieldOfView
+local infJumpEnabled, noclipEnabled, aimbotEnabled, triggerBotEnabled = false, false, false, false
+
+-- Find best text function
+local function getTextFunc(tab)
+    for _, fn in ipairs({"AddParagraph", "AddLabel", "AddText"}) do
+        if typeof(tab[fn]) == "function" then
+            return function(title, content)
+                if fn == "AddParagraph" then
+                    return tab:AddParagraph({Title = title, Content = content})
+                else
+                    return tab[fn](tab, title .. "\n" .. content)
+                end
             end
         end
     end
-    return function() end
+    return function(_, _) end
 end
 
-local H = _W:MakeTab({"Home", "home"})
-local _HT = _T(H)
-_HT("Welcome", "\75\84\76\32\72\117\98\32\58\32\85\110\105\118\101\114\115\97\108\n\77\97\100\101\32\98\121\32\85\122\105\44\32\76\101\103\101\110\100\44\32\97\110\100\32\84\114\51\120")
-H:AddDiscordInvite({Name = "Join KTL Discord", Logo = "rbxassetid://112061134720873", Invite = "https://discord.gg/4yhuJhEzJX"})
+-- ========= HOME =========
+local Home = Window:MakeTab({"Home", "home"})
+local addText = getTextFunc(Home)
+addText("Welcome", "KTL Hub : Universal\nMade by Uzi, Legend, and Tr3x")
+Home:AddDiscordInvite({
+    Name = "Join KTL Discord",
+    Logo = "rbxassetid://112061134720873",
+    Invite = "https://discord.gg/4yhuJhEzJX"
+})
 
-local PT = _W:MakeTab({"Player", "user"})
-_HT = _T(PT)
-_HT("Player Controls", "Adjust your stats")
+-- ========= PLAYER =========
+local PlayerTab = Window:MakeTab({"Player", "user"})
+addText = getTextFunc(PlayerTab)
+addText("Player Controls", "Adjust your stats")
 
-PT:AddSlider({Name = "WalkSpeed", Min = 0, Max = 500, Default = ws, Callback = function(v) ws = v end})
-PT:AddSlider({Name = "JumpPower", Min = 0, Max = 500, Default = jp, Callback = function(v) jp = v end})
-PT:AddSlider({Name = "FOV", Min = 70, Max = 120, Default = fv, Callback = function(v) fv = v end})
+PlayerTab:AddSlider({
+    Name = "WalkSpeed",
+    Min = 0, Max = 500, Default = 16,
+    Callback = function(v) speedValue = v end
+})
+PlayerTab:AddSlider({
+    Name = "JumpPower",
+    Min = 0, Max = 500, Default = 50,
+    Callback = function(v) jumpValue = v end
+})
+PlayerTab:AddSlider({
+    Name = "FOV",
+    Min = 70, Max = 120, Default = camera.FieldOfView,
+    Callback = function(v) fovValue = v end
+})
 
-PT:AddToggle({Name = "Infinite Jump", Default = false, Callback = function(s) ij = s end})
-PT:AddToggle({Name = "NoClip", Default = false, Callback = function(s) nc = s end})
-PT:AddToggle({Name = "Aimbot (Hold Right Click)", Default = false, Callback = function(s) ab = s end})
-PT:AddToggle({Name = "Trigger Bot (Crosshair Fire)", Default = false, Callback = function(s) tb = s end})
+PlayerTab:AddToggle({Name = "Infinite Jump", Default = false, Callback = function(s) infJumpEnabled = s end})
+PlayerTab:AddToggle({Name = "NoClip", Default = false, Callback = function(s) noclipEnabled = s end})
+PlayerTab:AddToggle({Name = "Aimbot (Hold Right Click)", Default = false, Callback = function(s) aimbotEnabled = s end})
+PlayerTab:AddToggle({Name = "Trigger Bot (Crosshair Fire)", Default = false, Callback = function(s) triggerBotEnabled = s end})
 
-local I = _W:MakeTab({"Info", "info"})
-_HT = _T(I)
+-- ========= INFO =========
+local Info = Window:MakeTab({"Info", "info"})
+addText = getTextFunc(Info)
 
-local exn, exv = "Unknown", ""
-pcall(function() if identifyexecutor then exn, exv = identifyexecutor() end end)
-_HT("Executor", exn .. (exv ~= "" and " v" .. exv or ""))
+local execName, execVer = "Unknown", ""
+pcall(function() if identifyexecutor then execName, execVer = identifyexecutor() end end)
+local execBlock = addText("Executor", execName .. (execVer ~= "" and " v"..execVer or ""))
 
-_HT("Player", ("Name: %s\nDisplay: %s\nUserId: %s"):format(L.Name, L.DisplayName, tostring(L.UserId)))
+local playerBlock = addText("Player", ("Name: %s\nDisplay: %s\nUserId: %s")
+    :format(LocalPlayer.Name, LocalPlayer.DisplayName, tostring(LocalPlayer.UserId)))
 
-local gn = "Unknown"
-pcall(function() gn = M:GetProductInfo(game.PlaceId).Name end)
-_HT("Game", ("Name: %s\nPlaceId: %s\nJobId: %s"):format(gn, tostring(game.PlaceId), tostring(game.JobId)))
+local gameName = "Unknown"
+pcall(function() gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name end)
+local gameBlock = addText("Game", ("Name: %s\nPlaceId: %s\nJobId: %s")
+    :format(gameName, tostring(game.PlaceId), tostring(game.JobId)))
 
-local fB, pB, tB, plB = _HT("FPS", "Loading..."), _HT("Ping", "Loading..."), _HT("Session Time", "Loading..."), _HT("Players", "Loading...")
+local fpsBlock   = addText("FPS", "Loading...")
+local pingBlock  = addText("Ping", "Loading...")
+local timeBlock  = addText("Session Time", "Loading...")
+local playersBlk = addText("Players", "Loading...")
 
-local Srv = _W:MakeTab({"Server", "server"})
-_HT = _T(Srv)
-Srv:AddButton({Name = "Rejoin", Callback = function() T:TeleportToPlaceInstance(game.PlaceId, game.JobId, L) end})
-Srv:AddButton({Name = "Server Hop", Callback = function() T:Teleport(game.PlaceId, L) end})
-Srv:AddButton({Name = "Copy JobId", Callback = function() setclipboard(game.JobId) end})
+-- ========= SERVER =========
+local Server = Window:MakeTab({"Server", "server"})
+addText = getTextFunc(Server)
 
-U.JumpRequest:Connect(function()
-    if ij then
-        local h = L.Character and L.Character:FindFirstChildOfClass("Humanoid")
-        if h then h:ChangeState("Jumping") end
+Server:AddButton({Name = "Rejoin", Callback = function()
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+end})
+Server:AddButton({Name = "Server Hop", Callback = function()
+    TeleportService:Teleport(game.PlaceId, LocalPlayer)
+end})
+Server:AddButton({Name = "Copy JobId", Callback = function()
+    setclipboard(game.JobId)
+end})
+
+-- ========= BACKEND =========
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum:ChangeState("Jumping") end
     end
 end)
 
-R.Stepped:Connect(function()
-    if nc and L.Character then
-        for _, v in ipairs(L.Character:GetDescendants()) do
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = false end
         end
     end
 end)
 
-local f = 0
-R.RenderStepped:Connect(function() f += 1 end)
+local frames = 0
+RunService.RenderStepped:Connect(function() frames += 1 end)
 task.spawn(function()
     while task.wait(1) do
-        fB:Set("FPS", tostring(f)) f = 0
+        fpsBlock:Set("FPS", tostring(frames)) frames = 0
         pcall(function()
-            local p = ST.Network.ServerStatsItem["Data Ping"]:GetValue()
-            pB:Set("Ping", math.floor(p) .. " ms")
+            local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+            pingBlock:Set("Ping", math.floor(ping) .. " ms")
         end)
-        local a = math.floor(tick() - Sx)
-        tB:Set("Session Time", ("%d min %d sec"):format(a // 60, a % 60))
-        plB:Set("Players", ("%d/%d"):format(#P:GetPlayers(), P.MaxPlayers))
+        local age = math.floor(tick() - scriptStart)
+        timeBlock:Set("Session Time", ("%d min %d sec"):format(age//60, age%60))
+        playersBlk:Set("Players", ("%d/%d"):format(#Players:GetPlayers(), Players.MaxPlayers))
     end
 end)
 
-R.Heartbeat:Connect(function()
-    local h = L.Character and L.Character:FindFirstChildOfClass("Humanoid")
-    if h then
-        h.WalkSpeed, h.JumpPower = ws, jp
-        h.UseJumpPower = true
+RunService.Heartbeat:Connect(function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed, hum.JumpPower = speedValue, jumpValue
+        hum.UseJumpPower = true
     end
-    C.FieldOfView = fv
+    camera.FieldOfView = fovValue
 end)
 
-local function _CP()
-    local c, d = nil, math.huge
-    for _, p in ipairs(P:GetPlayers()) do
-        if p ~= L and p.Character and p.Character:FindFirstChild("Head") then
-            local h = p.Character.Head
-            local s, o = C:WorldToViewportPoint(h.Position)
-            if o then
-                local dist = (Vector2.new(s.X, s.Y) - U:GetMouseLocation()).Magnitude
-                if dist < d then c, d = h, dist end
+-- Aimbot Logic (Hold Right Click)
+local function getClosestPlayer()
+    local closest, distance = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            local head = player.Character.Head
+            local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if dist < distance then
+                    closest, distance = head, dist
+                end
             end
         end
     end
-    return c
+    return closest
 end
 
-R.RenderStepped:Connect(function()
-    if ab and U:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-        local t = _CP()
-        if t then C.CFrame = CFrame.new(C.CFrame.Position, t.Position) end
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local target = getClosestPlayer()
+        if target then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, target.Position)
+        end
     end
 end)
 
-local function _TV(p)
-    local m = p:FindFirstAncestorOfClass("Model")
-    if not m or m == L.Character then return false end
-    local h = m:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
+-- Trigger Bot Logic
+local function isTargetValid(part)
+    local model = part:FindFirstAncestorOfClass("Model")
+    if not model or model == LocalPlayer.Character then return false end
+    local hum = model:FindFirstChildOfClass("Humanoid")
+    return hum and hum.Health > 0
 end
 
-local function mouse1click()
-    local VIM = game:GetService("VirtualInputManager")
-    VIM:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-    VIM:SendMouseButtonEvent(0, 0, 0, false, game, 0)
+RunService.RenderStepped:Connect(function()
+    if triggerBotEnabled then
+        local mousePos = UserInputService:GetMouseLocation()
+        local ray = camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LocalPlayer.Character}
+        params.FilterType = Enum.RaycastFilterType.Blacklist
+
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
+        if result and result.Instance and isTargetValid(result.Instance) then
+            mouse1click()
+        end
+    end
+end)
+
+Window.OnUnload = function()
+    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.WalkSpeed, hum.JumpPower = 16, 50 end
+    camera.FieldOfView = 70
 end
 
-R.RenderStepped:Connect(function()
-    if tb
+lib:SetTheme("Dark")
+Window:SelectTab(Home)
