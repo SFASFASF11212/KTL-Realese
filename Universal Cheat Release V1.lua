@@ -27,18 +27,6 @@ local scriptStart = tick()
 -- Vars
 local speedValue, jumpValue, fovValue = 16, 50, camera.FieldOfView
 local infJumpEnabled, noclipEnabled, aimbotEnabled, triggerBotEnabled = false, false, false, false
-local teamCheckEnabled = true -- default on
-local tracersEnabled = false
-
--- ESP vars
-local espEnabled = false
-local espSize = 4
-local espColor = Color3.fromRGB(0, 255, 0) -- enemy/default
-local allyColor = Color3.fromRGB(0, 150, 255) -- teammates (blue)
-local ESPBoxes = {}
-
--- Tracer vars
-local TracerLines = {}
 
 -- Find best text function
 local function getTextFunc(tab)
@@ -54,15 +42,6 @@ local function getTextFunc(tab)
         end
     end
     return function(_, _) end
-end
-
--- Helper: determine color for a player (team-aware)
-local function getColorForPlayer(player)
-    if player and player.Team and LocalPlayer and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-        return allyColor
-    else
-        return espColor
-    end
 end
 
 -- ========= HOME =========
@@ -97,6 +76,10 @@ PlayerTab:AddSlider({
 })
 
 -- ========= ESP IN PLAYER TAB =========
+local espEnabled = false
+local espSize = 4
+local espColor = Color3.fromRGB(0, 255, 0)
+local ESPBoxes = {}
 
 -- Function to create ESP box
 local function createESP(player)
@@ -107,7 +90,7 @@ local function createESP(player)
     local box = Instance.new("BoxHandleAdornment")
     box.Adornee = hrp
     box.Size = Vector3.new(espSize, espSize*1.5, espSize/2)
-    box.Color3 = getColorForPlayer(player)
+    box.Color3 = espColor
     box.AlwaysOnTop = true
     box.Transparency = 0.5
     box.ZIndex = 2
@@ -123,85 +106,22 @@ local function removeAllESP()
     ESPBoxes = {}
 end
 
--- Tracer helpers (Drawing API)
-local function createTracer(player)
-    local success, line = pcall(function() return Drawing.new("Line") end)
-    if not success or not line then return nil end
-    line.Visible = false
-    line.Transparency = 1
-    line.Thickness = 1.5
-    line.Color = getColorForPlayer(player)
-    TracerLines[player] = line
-    return line
-end
-
-local function removeAllTracers()
-    for _, line in pairs(TracerLines) do
-        if line and type(line.Remove) == "function" then
-            pcall(function() line:Remove() end)
-        end
-    end
-    TracerLines = {}
-end
-
--- Update loop (ESP + Tracers combined, team-check aware)
+-- Update loop
 RunService.RenderStepped:Connect(function()
-    -- We'll iterate all players and update/create/destroy ESP & Tracer objects as needed
-    if espEnabled or tracersEnabled then
-        local players = Players:GetPlayers()
-        local viewportCenter = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-        for _, player in ipairs(players) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                -- Apply team check: if enabled, skip teammates for visual features
-                if teamCheckEnabled and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                    -- If team check enabled: we skip creating visuals for teammates
-                    if ESPBoxes[player] then ESPBoxes[player]:Destroy() ESPBoxes[player] = nil end
-                    if TracerLines[player] then pcall(function() TracerLines[player]:Remove() end) TracerLines[player] = nil end
-                else
-                    local hrp = player.Character.HumanoidRootPart
-                    local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
-
-                    -- Ensure ESP box exists if needed
-                    if espEnabled then
-                        if not ESPBoxes[player] then createESP(player) end
-                        local box = ESPBoxes[player]
-                        if box and hrp then
-                            box.Adornee = hrp
-                            box.Size = Vector3.new(espSize, espSize*1.5, espSize/2)
-                            box.Color3 = getColorForPlayer(player)
-                        end
-                    else
-                        if ESPBoxes[player] then ESPBoxes[player]:Destroy() ESPBoxes[player] = nil end
-                    end
-
-                    -- Tracers
-                    if tracersEnabled then
-                        if not TracerLines[player] then createTracer(player) end
-                        local line = TracerLines[player]
-                        if line then
-                            if onScreen then
-                                line.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y) -- bottom-center
-                                line.To = Vector2.new(screenPos.X, screenPos.Y)
-                                line.Color = getColorForPlayer(player)
-                                line.Visible = true
-                            else
-                                line.Visible = false
-                            end
-                        end
-                    else
-                        if TracerLines[player] then pcall(function() TracerLines[player]:Remove() end) TracerLines[player] = nil end
-                    end
+    if espEnabled then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                if not ESPBoxes[player] then createESP(player) end
+                local box = ESPBoxes[player]
+                if box and player.Character:FindFirstChild("HumanoidRootPart") then
+                    box.Adornee = player.Character.HumanoidRootPart
+                    box.Size = Vector3.new(espSize, espSize*1.5, espSize/2)
+                    box.Color3 = espColor
                 end
-            else
-                -- Player has no character or is localplayer: clean up any remnants
-                if ESPBoxes[player] then ESPBoxes[player]:Destroy() ESPBoxes[player] = nil end
-                if TracerLines[player] then pcall(function() TracerLines[player]:Remove() end) TracerLines[player] = nil end
             end
         end
     else
-        -- neither ESP nor tracers enabled: ensure cleanup
         removeAllESP()
-        removeAllTracers()
     end
 end)
 
@@ -224,7 +144,7 @@ PlayerTab:AddSlider({
     end
 })
 
--- ESP Color dropdown (enemy/default)
+-- ESP Color dropdown
 PlayerTab:AddDropdown({
     Name = "ESP Color",
     Options = {"Green", "Red", "Blue", "Yellow", "Purple"},
@@ -239,29 +159,8 @@ PlayerTab:AddDropdown({
     end
 })
 
--- Tracers toggle (also cleans up when disabled)
-PlayerTab:AddToggle({
-    Name = "Tracers",
-    Default = false,
-    Callback = function(v)
-        tracersEnabled = v
-        if not v then removeAllTracers() end
-    end
-})
 
--- Team check toggle
-PlayerTab:AddToggle({
-    Name = "Team Check",
-    Default = true,
-    Callback = function(v)
-        teamCheckEnabled = v
-        -- cleanup so visuals re-evaluate on next RenderStepped
-        if not espEnabled then removeAllESP() end
-        if not tracersEnabled then removeAllTracers() end
-    end
-})
 
--- Extra toggles
 PlayerTab:AddToggle({Name = "Infinite Jump", Default = false, Callback = function(s) infJumpEnabled = s end})
 PlayerTab:AddToggle({Name = "NoClip", Default = false, Callback = function(s) noclipEnabled = s end})
 PlayerTab:AddToggle({Name = "Aimbot (Hold Right Click)", Default = false, Callback = function(s) aimbotEnabled = s end})
@@ -319,18 +218,17 @@ RunService.Stepped:Connect(function()
 end)
 
 local frames = 0
-RunService.RenderStepped:Connect(function() frames = frames + 1 end)
+RunService.RenderStepped:Connect(function() frames += 1 end)
 task.spawn(function()
     while task.wait(1) do
-        pcall(function() fpsBlock:Set("FPS", tostring(frames)) end)
-        frames = 0
+        fpsBlock:Set("FPS", tostring(frames)) frames = 0
         pcall(function()
             local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
             pingBlock:Set("Ping", math.floor(ping) .. " ms")
         end)
         local age = math.floor(tick() - scriptStart)
-        pcall(function() timeBlock:Set("Session Time", ("%d min %d sec"):format(age//60, age%60)) end)
-        pcall(function() playersBlk:Set("Players", ("%d/%d"):format(#Players:GetPlayers(), Players.MaxPlayers)) end)
+        timeBlock:Set("Session Time", ("%d min %d sec"):format(age//60, age%60))
+        playersBlk:Set("Players", ("%d/%d"):format(#Players:GetPlayers(), Players.MaxPlayers))
     end
 end)
 
@@ -348,16 +246,12 @@ local function getClosestPlayer()
     local closest, distance = nil, math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-            if teamCheckEnabled and player.Team and LocalPlayer.Team and player.Team == LocalPlayer.Team then
-                -- skip teammate when team check enabled
-            else
-                local head = player.Character.Head
-                local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - UserInputService:GetMouseLocation()).Magnitude
-                    if dist < distance then
-                        closest, distance = head, dist
-                    end
+            local head = player.Character.Head
+            local screenPos, onScreen = camera:WorldToViewportPoint(head.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - UserInputService:GetMouseLocation()).Magnitude
+                if dist < distance then
+                    closest, distance = head, dist
                 end
             end
         end
@@ -379,9 +273,6 @@ local function isTargetValid(part)
     local model = part:FindFirstAncestorOfClass("Model")
     if not model or model == LocalPlayer.Character then return false end
     local hum = model:FindFirstChildOfClass("Humanoid")
-    local plr = Players:GetPlayerFromCharacter(model)
-    if not plr or plr == LocalPlayer then return false end
-    if teamCheckEnabled and plr.Team == LocalPlayer.Team then return false end
     return hum and hum.Health > 0
 end
 
@@ -395,7 +286,7 @@ RunService.RenderStepped:Connect(function()
 
         local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, params)
         if result and result.Instance and isTargetValid(result.Instance) then
-            pcall(function() mouse1click() end)
+            mouse1click()
         end
     end
 end)
@@ -404,8 +295,6 @@ Window.OnUnload = function()
     local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
     if hum then hum.WalkSpeed, hum.JumpPower = 16, 50 end
     camera.FieldOfView = 70
-    removeAllESP()
-    removeAllTracers()
 end
 
 lib:SetTheme("Dark")
